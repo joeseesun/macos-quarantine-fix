@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mac 应用打不开？一键修复</title>
+<meta name="description" content="Mac 提示应用已损坏或无法验证开发者？把应用拖进来，一键生成修复命令">
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --card-bg: #ffffff;
+    --text: #1d1d1f;
+    --text-secondary: #86868b;
+    --accent: #0071e3;
+    --accent-hover: #0077ed;
+    --border: #d2d2d7;
+    --drop-bg: #f0f0f5;
+    --drop-active: #e8f0fe;
+    --code-bg: #1d1d1f;
+    --code-text: #f5f5f7;
+    --success: #34c759;
+    --warning: #ff9500;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #000000;
+      --card-bg: #1c1c1e;
+      --text: #f5f5f7;
+      --text-secondary: #86868b;
+      --accent: #2997ff;
+      --accent-hover: #4dacff;
+      --border: #38383a;
+      --drop-bg: #2c2c2e;
+      --drop-active: #1a3a5c;
+      --code-bg: #2c2c2e;
+      --code-text: #f5f5f7;
+    }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60px 20px 40px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container {
+    max-width: 680px;
+    width: 100%;
+  }
+  h1 {
+    font-size: 48px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+  .subtitle {
+    font-size: 21px;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-bottom: 48px;
+    line-height: 1.4;
+    font-weight: 400;
+  }
+
+  /* Drop Zone */
+  .drop-zone {
+    background: var(--drop-bg);
+    border: 2px dashed var(--border);
+    border-radius: 20px;
+    padding: 60px 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    margin-bottom: 24px;
+    position: relative;
+  }
+  .drop-zone:hover {
+    border-color: var(--accent);
+    background: var(--drop-active);
+  }
+  .drop-zone.active {
+    border-color: var(--accent);
+    background: var(--drop-active);
+    border-style: solid;
+    transform: scale(1.01);
+  }
+  .drop-zone.has-app {
+    border-color: var(--success);
+    border-style: solid;
+    background: var(--drop-bg);
+  }
+  .drop-zone.loading {
+    border-color: var(--accent);
+    border-style: solid;
+    pointer-events: none;
+  }
+  .drop-zone.loading .drop-icon { display: none; }
+  .drop-zone.loading .spinner { display: block; margin: 0 auto; }
+  .drop-icon {
+    font-size: 56px;
+    margin-bottom: 16px;
+    display: block;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  .spinner {
+    display: none;
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 16px;
+  }
+  .drop-text {
+    font-size: 18px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+  .drop-hint {
+    font-size: 14px;
+    color: var(--text-secondary);
+    opacity: 0.6;
+  }
+  .app-name {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text);
+    margin-top: 8px;
+  }
+
+  /* DMG Confirm */
+  .dmg-confirm {
+    display: none;
+    background: var(--card-bg);
+    border: 2px solid var(--warning);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+    animation: fadeIn 0.3s ease;
+  }
+  .dmg-confirm.visible { display: block; }
+  .dmg-confirm-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+  .dmg-confirm-hint {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+  .dmg-input-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .dmg-input-prefix {
+    font-size: 14px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .dmg-input {
+    flex: 1;
+    padding: 12px 14px;
+    font-size: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--drop-bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .dmg-input:focus { border-color: var(--accent); }
+  .dmg-confirm-btn {
+    padding: 12px 24px;
+    font-size: 15px;
+    font-weight: 600;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.2s;
+  }
+  .dmg-confirm-btn:hover { background: var(--accent-hover); }
+
+  /* Manual Input */
+  .manual-section {
+    margin-bottom: 32px;
+  }
+  .manual-label {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .manual-input {
+    width: 100%;
+    padding: 14px 18px;
+    font-size: 16px;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    background: var(--card-bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .manual-input:focus {
+    border-color: var(--accent);
+  }
+  .manual-input::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.5;
+  }
+
+  /* Command Output */
+  .command-section {
+    display: none;
+    margin-bottom: 32px;
+  }
+  .command-section.visible {
+    display: block;
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .command-label {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+  .command-box {
+    background: var(--code-bg);
+    color: var(--code-text);
+    border-radius: 12px;
+    padding: 20px;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 15px;
+    line-height: 1.6;
+    position: relative;
+    word-break: break-all;
+    overflow-wrap: break-word;
+  }
+  .command-text {
+    user-select: all;
+    padding-right: 48px;
+  }
+  .copy-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: rgba(255,255,255,0.12);
+    border: none;
+    color: #fff;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    font-size: 16px;
+  }
+  .copy-btn:hover {
+    background: rgba(255,255,255,0.2);
+  }
+  .copy-btn.copied {
+    background: var(--success);
+  }
+
+  /* Steps */
+  .steps {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 28px;
+    border: 1px solid var(--border);
+  }
+  .steps h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 20px;
+  }
+  .step {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .step:last-child { margin-bottom: 0; }
+  .step-num {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .step-content {
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--text);
+    padding-top: 3px;
+  }
+  .step-content code {
+    background: var(--drop-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'SF Mono', monospace;
+    font-size: 13px;
+  }
+
+  /* Info */
+  .info {
+    margin-top: 32px;
+    padding: 20px 24px;
+    background: var(--card-bg);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+  }
+  .info summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--text);
+    font-size: 15px;
+  }
+  .info p { margin-top: 12px; }
+
+  /* Footer */
+  footer {
+    margin-top: 48px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-secondary);
+    opacity: 0.6;
+  }
+  footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  @media (max-width: 600px) {
+    h1 { font-size: 32px; }
+    .subtitle { font-size: 17px; }
+    .drop-zone { padding: 40px 24px; }
+    .drop-icon { font-size: 44px; }
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>Mac 应用打不开？</h1>
+    <p class="subtitle">提示「已损坏」或「无法验证开发者」？<br>把应用拖进来，帮你生成修复命令</p>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" style="display:none">
+      <div class="spinner" id="loadingSpinner"></div>
+      <span class="drop-icon" id="dropIcon">📦</span>
+      <p class="drop-text" id="dropText">把打不开的应用拖到这里</p>
+      <p class="drop-hint" id="dropHint">支持 .app 和 .dmg 文件，或 <a href="#" id="browseLink" style="color:var(--accent);text-decoration:underline;">点击选择文件</a></p>
+    </div>
+
+    <div class="dmg-confirm" id="dmgConfirm">
+      <p class="dmg-confirm-title">里面的应用叫什么名字？</p>
+      <p class="dmg-confirm-hint">安装包里的应用名可能和文件名不一样。<br>请打开这个文件，看看里面 <strong>.app 应用</strong>的实际名字，填在下面：</p>
+      <div class="dmg-input-row">
+        <span class="dmg-input-prefix">/Applications/</span>
+        <input type="text" class="dmg-input" id="dmgAppName" placeholder="应用名称.app" spellcheck="false">
+        <button class="dmg-confirm-btn" id="dmgConfirmBtn">生成命令</button>
+      </div>
+    </div>
+
+    <div class="manual-section">
+      <label class="manual-label">
+        <span>或直接输入应用名称 / 路径</span>
+      </label>
+      <input
+        type="text"
+        class="manual-input"
+        id="manualInput"
+        placeholder="例如：/Applications/MyApp.app"
+        spellcheck="false"
+        autocomplete="off"
+      >
+    </div>
+
+    <div class="command-section" id="commandSection">
+      <p class="command-label">复制下面这行命令，粘贴到「终端」里运行：</p>
+      <div class="command-box">
+        <span class="command-text" id="commandText"></span>
+        <button class="copy-btn" id="copyBtn" title="复制命令">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="steps">
+      <h3>只需 4 步</h3>
+      <div class="step">
+        <span class="step-num">1</span>
+        <span class="step-content">把打不开的应用拖到上方区域（或点击选择文件）</span>
+      </div>
+      <div class="step">
+        <span class="step-num">2</span>
+        <span class="step-content">点击黑色区域右上角的 <strong>复制按钮</strong></span>
+      </div>
+      <div class="step">
+        <span class="step-num">3</span>
+        <span class="step-content">打开「终端」—— 按 <code>Command + 空格</code>，输入 <code>终端</code> 或 <code>Terminal</code>，回车打开</span>
+      </div>
+      <div class="step">
+        <span class="step-num">4</span>
+        <span class="step-content"><code>Command + V</code> 粘贴命令，按回车。会要求输入 Mac 开机密码（<strong>输入时看不到字符，这是正常的</strong>），输完再按回车就好了</span>
+      </div>
+    </div>
+
+    <details class="info">
+      <summary>这是怎么回事？安全吗？</summary>
+      <p>macOS 会给所有从网上下载的应用打上一个「隔离标记」。如果这个应用没有经过 Apple 官方认证，系统就会弹窗说「已损坏」或「无法验证开发者」，不让你打开。</p>
+      <p>这个工具生成的命令，只是帮你<strong>去掉这个标记</strong>，让应用可以正常打开。不会修改应用本身，也不会影响你的系统。</p>
+      <p><strong>安全提醒</strong>：请只对你信任来源的应用使用此方法。如果你不确定应用是否安全，建议不要使用。</p>
+    </details>
+
+    <footer>
+      Made by <a href="https://x.com/vista8" target="_blank">@vista8</a>
+    </footer>
+  </div>
+
+<script>
+const dropZone = document.getElementById('dropZone');
+const dropIcon = document.getElementById('dropIcon');
+const dropText = document.getElementById('dropText');
+const dropHint = document.getElementById('dropHint');
+const fileInput = document.getElementById('fileInput');
+const dmgConfirm = document.getElementById('dmgConfirm');
+const dmgAppName = document.getElementById('dmgAppName');
+const dmgConfirmBtn = document.getElementById('dmgConfirmBtn');
+const manualInput = document.getElementById('manualInput');
+const commandSection = document.getElementById('commandSection');
+const commandText = document.getElementById('commandText');
+const copyBtn = document.getElementById('copyBtn');
+
+const DEFAULT_ICON = '📦';
+const DEFAULT_TEXT = '把打不开的应用拖到这里';
+const DEFAULT_HINT_HTML = '支持 .app 和 .dmg 文件，或 <a href="#" id="browseLink" style="color:var(--accent);text-decoration:underline;">点击选择文件</a>';
+
+function generateCommand(appPath) {
+  appPath = appPath.trim();
+  if (!appPath) {
+    commandSection.classList.remove('visible');
+    return;
+  }
+  const escaped = appPath.replace(/([\\  '"$`!#&|;(){}])/g, '\\$1');
+  const cmd = `sudo xattr -rd com.apple.quarantine ${escaped}`;
+  commandText.textContent = cmd;
+  commandSection.classList.add('visible');
+}
+
+function hideDmgConfirm() {
+  dmgConfirm.classList.remove('visible');
+}
+
+function showDmgConfirm(originalFileName) {
+  const { appName } = guessAppName(originalFileName);
+  dmgAppName.value = appName;
+  dmgConfirm.classList.add('visible');
+  commandSection.classList.remove('visible');
+  dmgAppName.focus();
+  dmgAppName.setSelectionRange(0, appName.length - 4);
+}
+
+// DMG confirm
+dmgConfirmBtn.addEventListener('click', () => {
+  let name = dmgAppName.value.trim();
+  if (!name) return;
+  if (!name.endsWith('.app')) name += '.app';
+  const path = `/Applications/${name}`;
+  manualInput.value = path;
+  dropIcon.textContent = '✅';
+  dropText.textContent = name;
+  dropHint.textContent = '已确认应用名';
+  dropZone.classList.add('has-app');
+  hideDmgConfirm();
+  generateCommand(path);
+});
+
+dmgAppName.addEventListener('keydown', e => {
+  if (e.key === 'Enter') dmgConfirmBtn.click();
+});
+
+// ---- Core: extract name from drop/browse ----
+
+// Try every method to get a usable filename from a drop event
+function extractFileNameFromDrop(e) {
+  const names = [];
+
+  // Method 1: webkitGetAsEntry (works for .app directories)
+  if (e.dataTransfer.items) {
+    for (const item of e.dataTransfer.items) {
+      try {
+        const entry = item.webkitGetAsEntry?.();
+        if (entry?.name) {
+          names.push(entry.name);
+        }
+      } catch (_) {}
+      // Method 2: getAsFile
+      if (item.kind === 'file') {
+        try {
+          const file = item.getAsFile();
+          if (file?.name) names.push(file.name);
+        } catch (_) {}
+      }
+    }
+  }
+
+  // Method 3: dataTransfer.files
+  if (e.dataTransfer.files) {
+    for (const file of e.dataTransfer.files) {
+      if (file?.name) names.push(file.name);
+    }
+  }
+
+  // Return first .app, then first .dmg, then first anything
+  const app = names.find(n => n.endsWith('.app'));
+  if (app) return app;
+  const dmg = names.find(n => n.endsWith('.dmg'));
+  if (dmg) return dmg;
+  return names[0] || null;
+}
+
+// Smartly extract app name from any filename
+// "Warp.app" → { appName: "Warp.app", needConfirm: false }
+// "Warp.app.zip" → { appName: "Warp.app", needConfirm: false }
+// "FooBar_v2.1.dmg" → { appName: "FooBar_v2.1.app", needConfirm: true }
+// "SomeApp.zip" → { appName: "SomeApp.app", needConfirm: true }
+// "hello.txt" → { appName: "hello.app", needConfirm: true }
+function guessAppName(fileName) {
+  // Contains .app somewhere → extract up to .app
+  const appMatch = fileName.match(/^(.+\.app)/i);
+  if (appMatch) {
+    return { appName: appMatch[1], needConfirm: false };
+  }
+  // Strip known archive/installer extensions, then add .app
+  const baseName = fileName.replace(/\.(dmg|zip|gz|tar|tgz|bz2|xz|7z|rar|pkg|iso)$/i, '');
+  return { appName: baseName + '.app', needConfirm: true };
+}
+
+function handleFileName(fileName) {
+  if (!fileName) return;
+  hideDmgConfirm();
+
+  const { appName, needConfirm } = guessAppName(fileName);
+
+  if (!needConfirm) {
+    // Direct match like "Warp.app" or "Warp.app.zip"
+    const path = `/Applications/${appName}`;
+    manualInput.value = path;
+    dropIcon.textContent = '✅';
+    dropText.textContent = appName;
+    dropHint.innerHTML = '已识别应用 · <a href="#" id="browseLink" style="color:var(--accent);text-decoration:underline;">重新选择</a>';
+    dropZone.classList.add('has-app');
+    generateCommand(path);
+    bindBrowseLink();
+  } else {
+    // DMG / ZIP / other — need user to confirm real app name
+    dropIcon.textContent = '💿';
+    dropText.textContent = fileName;
+    dropHint.innerHTML = '请确认里面的应用名 · <a href="#" id="browseLink" style="color:var(--accent);text-decoration:underline;">重新选择</a>';
+    dropZone.classList.add('has-app');
+    showDmgConfirm(fileName);
+    bindBrowseLink();
+  }
+}
+
+function resetDropZone() {
+  dropIcon.textContent = DEFAULT_ICON;
+  dropText.textContent = DEFAULT_TEXT;
+  dropHint.innerHTML = DEFAULT_HINT_HTML;
+  dropZone.classList.remove('has-app');
+  hideDmgConfirm();
+  commandSection.classList.remove('visible');
+  manualInput.value = '';
+  bindBrowseLink();
+}
+
+function bindBrowseLink() {
+  // Use setTimeout to ensure DOM is updated before binding
+  setTimeout(() => {
+    const link = document.getElementById('browseLink');
+    if (link) {
+      link.onclick = e => {
+        e.preventDefault();
+        e.stopPropagation();
+        fileInput.click();
+      };
+    }
+  }, 0);
+}
+bindBrowseLink();
+
+
+// --- File input (browse) ---
+let waitingForFile = false;
+let loadingTimer = null;
+
+function showLoading() {
+  dropZone.classList.add('loading');
+  dropText.textContent = '正在读取文件...';
+  dropHint.textContent = '';
+}
+
+function hideLoading() {
+  dropZone.classList.remove('loading');
+  clearTimeout(loadingTimer);
+  loadingTimer = null;
+}
+
+fileInput.addEventListener('change', () => {
+  waitingForFile = false;
+  hideLoading();
+  if (fileInput.files.length > 0) {
+    const name = fileInput.files[0].name;
+    fileInput.value = '';
+    handleFileName(name);
+  } else {
+    fileInput.value = '';
+  }
+});
+
+// Prevent fileInput click from bubbling back to dropZone (recursive loop)
+fileInput.addEventListener('click', e => e.stopPropagation());
+
+// Click drop zone to browse (but not links inside it)
+dropZone.addEventListener('click', e => {
+  if (e.target.tagName === 'A') return;
+  waitingForFile = true;
+  fileInput.click();
+});
+
+// Dialog closed → show loading immediately while browser processes the file
+window.addEventListener('focus', () => {
+  if (!waitingForFile) return;
+  showLoading();
+  // Safety: if user cancelled, no change event fires; clean up after 5s
+  loadingTimer = setTimeout(() => {
+    if (waitingForFile) {
+      waitingForFile = false;
+      hideLoading();
+      resetDropZone();
+    }
+  }, 5000);
+});
+
+// --- Drag & Drop ---
+let dragCounter = 0;
+
+dropZone.addEventListener('dragenter', e => {
+  e.preventDefault();
+  e.stopPropagation();
+  dragCounter++;
+  dropZone.classList.add('active');
+  // Change text while hovering to prep user for potential delay
+  if (!dropZone.classList.contains('has-app')) {
+    dropText.textContent = '松开以识别应用';
+    dropHint.textContent = '大型应用可能需要几秒钟';
+  }
+});
+
+dropZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  e.stopPropagation();
+});
+
+dropZone.addEventListener('dragleave', e => {
+  e.preventDefault();
+  e.stopPropagation();
+  dragCounter--;
+  if (dragCounter <= 0) {
+    dragCounter = 0;
+    dropZone.classList.remove('active');
+    if (!dropZone.classList.contains('has-app')) {
+      dropText.textContent = DEFAULT_TEXT;
+      dropHint.innerHTML = DEFAULT_HINT_HTML;
+      bindBrowseLink();
+    }
+  }
+});
+
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  e.stopPropagation();
+  dragCounter = 0;
+  dropZone.classList.remove('active');
+
+  // Read dataTransfer synchronously (browser clears after event)
+  const names = [];
+  if (e.dataTransfer.items) {
+    for (const item of e.dataTransfer.items) {
+      try {
+        const entry = item.webkitGetAsEntry?.();
+        if (entry?.name) { names.push(entry.name); continue; }
+      } catch (_) {}
+      if (item.kind === 'file') {
+        try {
+          const file = item.getAsFile();
+          if (file?.name) names.push(file.name);
+        } catch (_) {}
+      }
+    }
+  }
+  if (e.dataTransfer.files) {
+    for (const file of e.dataTransfer.files) {
+      if (file?.name) names.push(file.name);
+    }
+  }
+
+  const app = names.find(n => n.endsWith('.app'));
+  const fileName = app || names.find(n => n.endsWith('.dmg')) || names[0] || null;
+
+  if (fileName) handleFileName(fileName);
+});
+
+// Manual input
+manualInput.addEventListener('input', () => {
+  const val = manualInput.value.trim();
+  hideDmgConfirm();
+  if (val) {
+    generateCommand(val);
+    const name = val.split('/').pop();
+    if (name) {
+      dropIcon.textContent = '✅';
+      dropText.textContent = name;
+      dropHint.textContent = '已输入路径';
+      dropZone.classList.add('has-app');
+    }
+  } else {
+    commandSection.classList.remove('visible');
+    resetDropZone();
+  }
+});
+
+// Copy
+copyBtn.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(commandText.textContent);
+    copyBtn.classList.add('copied');
+    copyBtn.innerHTML = '&#10003;';
+    setTimeout(() => {
+      copyBtn.classList.remove('copied');
+      copyBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>';
+    }, 2000);
+  } catch {
+    const range = document.createRange();
+    range.selectNodeContents(commandText);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    document.execCommand('copy');
+  }
+});
+
+// Prevent default drag on body
+document.body.addEventListener('dragover', e => e.preventDefault());
+document.body.addEventListener('drop', e => e.preventDefault());
+</script>
+</body>
+</html>

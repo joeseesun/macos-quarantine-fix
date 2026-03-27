@@ -649,11 +649,14 @@ fileInput.addEventListener('change', () => {
   waitingForFile = false;
   hideLoading();
   if (fileInput.files.length > 0) {
-    const name = fileInput.files[0].name;
+    const file = fileInput.files[0];
+    console.log('[quarantine-fix] file selected:', file.name, 'size:', file.size, 'type:', file.type);
     fileInput.value = '';
-    handleFileName(name);
+    handleFileName(file.name);
   } else {
+    // No file — user may have cancelled, or browser couldn't handle the selection
     fileInput.value = '';
+    resetDropZone();
   }
 });
 
@@ -671,14 +674,17 @@ dropZone.addEventListener('click', e => {
 window.addEventListener('focus', () => {
   if (!waitingForFile) return;
   showLoading();
-  // Safety: if user cancelled, no change event fires; clean up after 5s
+  // If no change event after 4s: browser couldn't handle the file (e.g. .app package)
   loadingTimer = setTimeout(() => {
     if (waitingForFile) {
       waitingForFile = false;
       hideLoading();
-      resetDropZone();
+      dropIcon.textContent = '⚠️';
+      dropText.textContent = '.app 文件请直接从 Finder 拖入';
+      dropHint.innerHTML = '浏览器无法读取 .app 目录包，请拖拽到此区域 · <a href="#" id="browseLink" style="color:var(--accent);text-decoration:underline;">重新选择其他文件</a>';
+      bindBrowseLink();
     }
-  }, 5000);
+  }, 4000);
 });
 
 // --- Drag & Drop ---
